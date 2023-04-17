@@ -142,6 +142,8 @@ const unsigned int SOD_INTERVAL = 20;    // milliseconds between SOD events.
 const byte LED[] = {22, 26};      // Example LED pin connections through typ. 1K8 resistor
 const byte SWITCH[] = {18, 19};   // Example Module Switch takes input to 0V.
 
+const bool active = 0; // 0 is for active low LED drive. 1 is for active high
+
 const int NUM_LEDS = sizeof(LED) / sizeof(LED[0]);
 const int NUM_SWITCHES = sizeof(SWITCH) / sizeof(SWITCH[0]);
 
@@ -241,7 +243,7 @@ void setupModule(){
 
   // module_configure the module LEDs
   for (int i = 0; i < NUM_LEDS; i++) {
-    moduleLED[i].setPin(LED[i], 0); //Second arguement sets 0 = active low, 1 = active high. Default if no second arguement is active high.
+    moduleLED[i].setPin(LED[i], active); //Second arguement sets 0 = active low, 1 = active high. Default if no second arguement is active high.
 	moduleLED[i].off();
   }
 
@@ -450,16 +452,30 @@ void processStartOfDay() {
       case 0:
         // ON and OFF
         opCode = (moduleSwitch[nextSodSwitchIndex].read() == LOW ? OPC_ACON : OPC_ACOF);
-        DEBUG_PRINT(get_core_num() << F("> SOD: Push Button ") << nextSodSwitchIndex
-            << " is " << (moduleSwitch[nextSodSwitchIndex].read() ? F("pressed, send 0x") : F(" released, send 0x")) << _HEX(opCode));
+    #if DEBUG
+        if (active) {
+          Serial << get_core_num() << F("> SOD: Push Button ") << nextSodSwitchIndex
+                 << " is " << (moduleSwitch[nextSodSwitchIndex].read() ? F("pressed, send 0x") : F(" released, send 0x")) << _HEX(opCode) << endl;
+        } else {
+          Serial << get_core_num() << F("> SOD: Push Button ") << nextSodSwitchIndex
+                 << " is " << (moduleSwitch[nextSodSwitchIndex].read() ? F("released, send 0x") : F(" pressed, send 0x")) << _HEX(opCode) << endl;
+        }
+    #endif
         isSuccess = sendEvent(opCode, (nextSodSwitchIndex + 1));
         break;
 
       case 3:
         // Toggle button - use saved state.
         opCode = (switchState[nextSodSwitchIndex] ? OPC_ACON : OPC_ACOF);
-        DEBUG_PRINT(get_core_num() << F("> SOD: Toggle Button ") << nextSodSwitchIndex
-            << " is " << (moduleSwitch[nextSodSwitchIndex].read() ? F("pressed, send 0x") : F(" released, send 0x")) << _HEX(opCode));
+    #if DEBUG
+        if (active) {
+          Serial << get_core_num() << F("> SOD: Toggle Button ") << nextSodSwitchIndex
+                 << " is " << (moduleSwitch[nextSodSwitchIndex].read() ? F("pressed, send 0x") : F(" released, send 0x")) << _HEX(opCode) << endl;
+        } else {
+          Serial << get_core_num() << F("> SOD: Toggle Button ") << nextSodSwitchIndex
+                 << " is " << (moduleSwitch[nextSodSwitchIndex].read() ? F("released, send 0x") : F(" pressed, send 0x")) << _HEX(opCode) << endl;
+        }
+    #endif
         isSuccess = sendEvent(opCode, (nextSodSwitchIndex + 1));
         break;
     }
