@@ -260,14 +260,16 @@ void setup(){
 
   // end of setup
   DEBUG_PRINT(get_core_num() << F("> ready"));
+  delay(20);	
 }
 
 void setup1() {
-  delay(2000);
+  delay(2010);
   setupModule();
 
   // end of setup
   DEBUG_PRINT(get_core_num() << F("> Module ready"));
+  delay(25);
 }
 
 void loop() {
