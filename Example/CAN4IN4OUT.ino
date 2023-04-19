@@ -92,7 +92,10 @@
 // Pin 40   VBUS
 //////////////////////////////////////////////////////////////////////////
 
-#define DEBUG 1  // set to 0 for no serial debug
+#define TIME_LOOP_0 0
+#define TIME_LOOP_1 0
+
+#define DEBUG 0  // set to 0 for no serial debug
 
 #if DEBUG
 #define DEBUG_PRINT(S) Serial << S << endl
@@ -178,9 +181,6 @@ void setupCBUS() {
   Serial << get_core_num() << F("> mode = ") << ((module_config.FLiM) ? "FLiM" : "SLiM") << F(", CANID = ") << module_config.CANID;
   Serial << get_core_num() << F(", NN = ") << module_config.nodeNum << endl;
 
-  // show code version and copyright notice
-  printConfig();
-
   // set module parameters
   CBUSParams params(module_config);
   params.setVersion(VER_MAJ, VER_MIN, VER_BETA);
@@ -254,7 +254,11 @@ void setupModule() {
 void setup() {
   Serial.begin(115200);
   delay(2000);
-  Serial << endl << endl << get_core_num() << F("> ** CBUS 4 in 4 out Dual Core v1 ** ") << __FILE__ << endl;
+  Serial << endl
+         << get_core_num() << F("> ** CBUS 4 in 4 out Dual Core v1 ** ") << __FILE__ << endl;
+
+  // show code version and copyright notice
+  printConfig();
 
   setupCBUS();
 
@@ -273,6 +277,12 @@ void setup1() {
 }
 
 void loop() {
+#if TIME_LOOP_0
+  static long lastTime = micros();
+  static long minTime = 10000;
+  static long maxTime = 0;
+#endif
+
   // do CBUS message, switch and LED processing
   CBUS.process();
 
@@ -280,9 +290,28 @@ void loop() {
   processSerialInput();
 
   processStartOfDay();
+
+#if TIME_LOOP_0
+  long nowTime = micros();
+  long loopTime = nowTime - lastTime;
+  if (loopTime < minTime) {
+    minTime = loopTime;
+    Serial << get_core_num() << F("> Min Loop Time = ") << minTime << F("uS") << F(": Max Loop Time = ") << maxTime << F("uS") << endl;
+  }
+  if (loopTime > maxTime) {
+    maxTime = loopTime;
+    Serial << get_core_num() << F("> Min Loop Time = ") << minTime << F("uS") << F(": Max Loop Time = ") << maxTime << F("uS") << endl;
+  }
+  lastTime = micros();
+#endif
 }
 
 void loop1() {
+#if TIME_LOOP_1
+  static long lastTime1 = micros();
+  static long minTime1 = 10000;
+  static long maxTime1 = 0;
+#endif
 
   // Run the LED code
   for (int i = 0; i < NUM_LEDS; i++) {
@@ -291,6 +320,20 @@ void loop1() {
 
   // test for switch input
   processSwitches();
+
+#if TIME_LOOP_1
+  long nowTime = micros();
+  long loopTime = nowTime - lastTime1;
+  if (loopTime < minTime1) {
+    minTime1 = loopTime;
+    Serial << get_core_num() << F("> Min Loop Time = ") << minTime1 << F("uS") << F(": Max Loop Time = ") << maxTime1 << F("uS") << endl;
+  }
+  if (loopTime > maxTime1) {
+    maxTime1 = loopTime;
+    Serial << get_core_num() << F("> Min Loop Time = ") << minTime1 << F("uS") << F(": Max Loop Time = ") << maxTime1 << F("uS") << endl;
+  }
+  lastTime1 = micros();
+#endif
 }
 
 void processSwitches(void) {
