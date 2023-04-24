@@ -1,5 +1,5 @@
 
-// CANmINnOUT
+// CAN4IN4OUT
 // Version for use with Raspberry Pi Pico with software CAN Controller.
 // This uses both cores of the RP2040.
 
@@ -124,7 +124,7 @@ unsigned char mname[7] = { '4', 'I', 'N', '4', 'O', 'U', 'T' };
 
 // constants
 const byte VER_MAJ = 2;     // code major version
-const char VER_MIN = 'a';   // code minor version
+const char VER_MIN = 'b';   // code minor version
 const byte VER_BETA = 0;    // code beta sub-version
 const byte MODULE_ID = 99;  // CBUS module type
 
@@ -277,6 +277,7 @@ void setup1() {
 }
 
 void loop() {
+  bool isSuccess = true;
 #if TIME_LOOP_0
   static long lastTime = micros();
   static long minTime = 10000;
@@ -290,6 +291,16 @@ void loop() {
   processSerialInput();
 
   processStartOfDay();
+
+  if (rp2040.fifo.available() == 2) {
+    uint8_t sendData1 = (uint8_t)rp2040.fifo.pop();
+    uint16_t sendData2 = (uint16_t)rp2040.fifo.pop();
+    isSuccess = sendEvent(sendData1, sendData2);
+  }
+
+  if (!isSuccess) {
+    DEBUG_PRINT(get_core_num() << F("> One of the send message events failed"));
+  }
 
 #if TIME_LOOP_0
   long nowTime = micros();
@@ -312,6 +323,14 @@ void loop1() {
   static long minTime1 = 10000;
   static long maxTime1 = 0;
 #endif
+
+  if (rp2040.fifo.available() > 0) {
+    byte msgLen = rp2040.fifo.pop();
+// Ensure Core 0 has loaded complete message into FIFO
+     while((msgLen + 1) != rp2040.fifo.available()){
+  }
+    receivedData(msgLen);  // Action FIFO contents
+  }
 
   // Run the LED code
   for (int i = 0; i < NUM_LEDS; i++) {
@@ -337,7 +356,7 @@ void loop1() {
 }
 
 void processSwitches(void) {
-  bool isSuccess = true;
+  // bool isSuccess = true;
   for (int i = 0; i < NUM_SWITCHES; i++) {
     moduleSwitch[i].update();
     if (moduleSwitch[i].changed()) {
@@ -354,7 +373,9 @@ void processSwitches(void) {
           opCode = (moduleSwitch[i].fell() ? OPC_ACON : OPC_ACOF);
           DEBUG_PRINT(get_core_num() << F("> Button ") << i
                                      << (moduleSwitch[i].fell() ? F(" pressed, send 0x") : F(" released, send 0x")) << _HEX(opCode));
-          isSuccess = sendEvent(opCode, (i + 1));
+          rp2040.fifo.push(opCode);
+          rp2040.fifo.push(i + 1);
+          //isSuccess = sendEvent(opCode, (i + 1));
           break;
 
         case 1:
@@ -362,7 +383,9 @@ void processSwitches(void) {
           if (moduleSwitch[i].fell()) {
             opCode = OPC_ACON;
             DEBUG_PRINT(get_core_num() << F("> Button ") << i << F(" pressed, send 0x") << _HEX(OPC_ACON));
-            isSuccess = sendEvent(opCode, (i + 1));
+            rp2040.fifo.push(opCode);
+            rp2040.fifo.push(i + 1);
+            //isSuccess = sendEvent(opCode, (i + 1));isSuccess = sendEvent(opCode, (i + 1));
           }
           break;
 
@@ -371,7 +394,9 @@ void processSwitches(void) {
           if (moduleSwitch[i].fell()) {
             opCode = OPC_ACOF;
             DEBUG_PRINT(get_core_num() << F("> Button ") << i << F(" pressed, send 0x") << _HEX(OPC_ACOF));
-            isSuccess = sendEvent(opCode, (i + 1));
+            rp2040.fifo.push(opCode);
+            rp2040.fifo.push(i + 1);
+            //isSuccess = sendEvent(opCode, (i + 1));
           }
           break;
 
@@ -382,7 +407,9 @@ void processSwitches(void) {
             opCode = (switchState[i] ? OPC_ACON : OPC_ACOF);
             DEBUG_PRINT(get_core_num() << F("> Button ") << i
                                        << (moduleSwitch[i].fell() ? F(" pressed, send 0x") : F(" released, send 0x")) << _HEX(opCode));
-            isSuccess = sendEvent(opCode, (i + 1));
+            rp2040.fifo.push(opCode);
+            rp2040.fifo.push(i + 1);
+            //isSuccess = sendEvent(opCode, (i + 1));
           }
 
           break;
@@ -393,9 +420,9 @@ void processSwitches(void) {
       }
     }
   }
-  if (!isSuccess) {
+  /*  if (!isSuccess) {
     DEBUG_PRINT(get_core_num() << F("> One of the send message events failed"));
-  }
+  }*/
 }
 
 // Send an event routine according to Module Switch
@@ -422,14 +449,31 @@ bool sendEvent(byte opCode, unsigned int eventNo) {
 /// called from the CBUS library when a learned event is received
 //
 void eventhandler(byte index, CANFrame *msg) {
-  byte opc = msg->data[0];
-
+  rp2040.fifo.push(msg->len);
+  rp2040.fifo.push(index);
+  for (byte n = 0; n < msg->len; n++) {
+    rp2040.fifo.push(msg->data[n]);
+  }
   DEBUG_PRINT(get_core_num() << F("> event handler: index = ") << index << F(", opcode = 0x") << _HEX(msg->data[0]));
   DEBUG_PRINT(get_core_num() << F("> event handler: length = ") << msg->len);
+}
+
+void receivedData(byte length) {
+
+  byte rcvdData[length];
+  byte index = rp2040.fifo.pop();
+  for (byte n = 0; n < length; n++) {
+    rcvdData[n] = rp2040.fifo.pop();
+  }
+
+  byte opc = rcvdData[0];
+//delay(50);
+  DEBUG_PRINT(get_core_num() << F("> event handler: index = ") << index << F(", opcode = 0x") << _HEX(rcvdData[0]));
+  DEBUG_PRINT(get_core_num() << F("> event handler: length = ") << length);
 
 #if DEBUG
-  unsigned int node_number = (msg->data[1] << 8) + msg->data[2];
-  unsigned int event_number = (msg->data[3] << 8) + msg->data[4];
+  unsigned int node_number = (rcvdData[1] << 8) + rcvdData[2];
+  unsigned int event_number = (rcvdData[3] << 8) + rcvdData[4];
 #endif
 
   DEBUG_PRINT(get_core_num() << F("> NN = ") << node_number << F(", EN = ") << event_number);

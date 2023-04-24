@@ -121,7 +121,7 @@ unsigned char mname[7] = { 'm', 'I', 'N', 'n', 'O', 'U', 'T' };
 
 // constants
 const byte VER_MAJ = 2;         // code major version
-const char VER_MIN = 'a';       // code minor version
+const char VER_MIN = 'b';       // code minor version
 const byte VER_BETA = 0;        // code beta sub-version
 const byte MODULE_ID = 99;      // CBUS module type
 
@@ -260,16 +260,14 @@ void setup(){
 
   // end of setup
   DEBUG_PRINT(get_core_num() << F("> ready"));
-  delay(20);	
 }
 
 void setup1() {
-  delay(2010);
+  delay(2000);
   setupModule();
 
   // end of setup
   DEBUG_PRINT(get_core_num() << F("> Module ready"));
-  delay(25);
 }
 
 void loop() {
@@ -280,9 +278,26 @@ void loop() {
   processSerialInput();
 
   processStartOfDay();
+  
+   if (rp2040.fifo.available() == 2) {
+    uint8_t sendData1 = (uint8_t)rp2040.fifo.pop();
+    uint16_t sendData2 = (uint16_t)rp2040.fifo.pop();
+    isSuccess = sendEvent(sendData1, sendData2);
+  }
+
+  if (!isSuccess) {
+    DEBUG_PRINT(get_core_num() << F("> One of the send message events failed"));
+  }
 }
 
 void loop1() {
+	 if (rp2040.fifo.available() > 0) {
+    byte msgLen = rp2040.fifo.pop();
+// Ensure Core 0 has loaded complete message into FIFO
+     while((msgLen + 1) != rp2040.fifo.available()){
+  }
+    receivedData(msgLen);  // Action FIFO contents
+  }
 
   // Run the LED code
   for (int i = 0; i < NUM_LEDS; i++) {
@@ -311,7 +326,8 @@ void processSwitches(void){
           opCode = (moduleSwitch[i].fell() ? OPC_ACON : OPC_ACOF);
           DEBUG_PRINT(get_core_num() << F("> Button ") << i
               << (moduleSwitch[i].fell() ? F(" pressed, send 0x") : F(" released, send 0x")) << _HEX(opCode));
-          isSuccess = sendEvent(opCode, (i + 1));
+           rp2040.fifo.push(opCode);
+          rp2040.fifo.push(i + 1);
           break;
 
         case 1:
@@ -319,7 +335,8 @@ void processSwitches(void){
           if (moduleSwitch[i].fell()) {
             opCode = OPC_ACON;
             DEBUG_PRINT(get_core_num() << F("> Button ") << i << F(" pressed, send 0x") << _HEX(OPC_ACON));
-            isSuccess = sendEvent(opCode, (i + 1));
+             rp2040.fifo.push(opCode);
+          rp2040.fifo.push(i + 1);
           }
           break;
 
@@ -328,7 +345,8 @@ void processSwitches(void){
           if (moduleSwitch[i].fell()) {
             opCode = OPC_ACOF;
             DEBUG_PRINT(get_core_num() << F("> Button ") << i << F(" pressed, send 0x") << _HEX(OPC_ACOF));
-            isSuccess = sendEvent(opCode, (i + 1));
+             rp2040.fifo.push(opCode);
+          rp2040.fifo.push(i + 1);
           }
           break;
 
@@ -339,7 +357,8 @@ void processSwitches(void){
             opCode = (switchState[i] ? OPC_ACON : OPC_ACOF);
             DEBUG_PRINT(get_core_num() << F("> Button ") << i
                 << (moduleSwitch[i].fell() ? F(" pressed, send 0x") : F(" released, send 0x")) << _HEX(opCode));
-            isSuccess = sendEvent(opCode, (i + 1));
+             rp2040.fifo.push(opCode);
+          rp2040.fifo.push(i + 1);
           }
 
           break;
@@ -379,14 +398,30 @@ bool sendEvent(byte opCode, unsigned int eventNo) {
 /// called from the CBUS library when a learned event is received
 //
 void eventhandler(byte index, CANFrame *msg) {
-  byte opc = msg->data[0];
-
+	rp2040.fifo.push(msg->len);
+  rp2040.fifo.push(index);
+  for (byte n = 0; n < msg->len; n++) {
+    rp2040.fifo.push(msg->data[n]);
+  }
   DEBUG_PRINT(get_core_num() << F("> event handler: index = ") << index << F(", opcode = 0x") << _HEX(msg->data[0]));
+  DEBUG_PRINT(get_core_num() << F("> event handler: length = ") << msg->len);
+}
+
+void receivedData(byte length) {
+	byte rcvdData[length];
+  byte index = rp2040.fifo.pop();
+  for (byte n = 0; n < length; n++) {
+    rcvdData[n] = rp2040.fifo.pop();
+  }
+
+  byte opc = rcvdData[0];
+
+  DEBUG_PRINT(get_core_num() << F("> event handler: index = ") << index << F(", opcode = 0x") << _HEX(rcvdData[0]));
   DEBUG_PRINT(get_core_num() << F("> event handler: length = ") << msg->len);
 
 #if DEBUG
-  unsigned int node_number = (msg->data[1] << 8 ) + msg->data[2];
-  unsigned int event_number = (msg->data[3] << 8 ) + msg->data[4];
+  unsigned int node_number = (rcvdData[1] << 8 ) + rcvdData[2];
+  unsigned int event_number = (rcvdData[3] << 8 ) + rcvdData[4];
 #endif
 
   DEBUG_PRINT(get_core_num() << F("> NN = ") << node_number << F(", EN = ") << event_number);
