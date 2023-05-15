@@ -271,6 +271,7 @@ void setup1() {
 }
 
 void loop() {
+  bool isSuccess = true;
   // do CBUS message, switch and LED processing
   CBUS.process();
 
@@ -309,8 +310,8 @@ void loop1() {
 }
 
 void processSwitches(void){
-  bool isSuccess = true;
-  for (int i = 0; i < NUM_SWITCHES; i++){
+// bool isSuccess = true;
+  for (int i = 0; i <  NUM_SWITCHES; i++){
     moduleSwitch[i].update();
     if (moduleSwitch[i].changed()){
       byte nv = i + 1;
@@ -369,9 +370,9 @@ void processSwitches(void){
       }
     }
   }
-  if (!isSuccess) {
+  /*if (!isSuccess) {
     DEBUG_PRINT(get_core_num() << F("> One of the send message events failed"));
-  }
+  }*/
 }
 
 // Send an event routine according to Module Switch
