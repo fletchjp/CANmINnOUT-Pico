@@ -107,6 +107,8 @@
 // 3rd party libraries
 #include <Streaming.h>
 #include <Bounce2.h>
+// To use task manager we must include the library
+#include "TaskManagerIO.h"
 
 // Module library header files
 #include "LEDControl.h"
@@ -263,6 +265,9 @@ void setup() {
 
   setupCBUS();
 
+  // Schedule tasks to run every 250 milliseconds.
+  taskManager.scheduleFixedRate(250, processSerialInput);
+
   // end of setup
   DEBUG_PRINT(get_core_num() << F("> CBUS ready"));
   delay(20);
@@ -288,8 +293,8 @@ void loop() {
   // do CBUS message, switch and LED processing
   CBUS.process();
 
-  // process console commands
-  processSerialInput();
+  // process console commands is now a task.
+  // processSerialInput();
 
   processStartOfDay();
 
@@ -302,6 +307,10 @@ void loop() {
   if (!isSuccess) {
     DEBUG_PRINT(get_core_num() << F("> One of the send message events failed"));
   }
+
+   // Run IO_Abstraction tasks.
+   taskManager.runLoop();
+
 
 #if TIME_LOOP_0
   long nowTime = micros();
