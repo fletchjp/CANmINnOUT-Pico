@@ -366,7 +366,7 @@ void loop1() {
 }
 
 void processSwitches(void) {
-  // bool isSuccess = true;
+  bool isSuccess = true;
   for (int i = 0; i < NUM_SWITCHES; i++) {
     moduleSwitch[i].update();
     if (moduleSwitch[i].changed()) {
@@ -430,9 +430,9 @@ void processSwitches(void) {
       }
     }
   }
-  /*  if (!isSuccess) {
+  if (!isSuccess) {
     DEBUG_PRINT(get_core_num() << F("> One of the send message events failed"));
-  }*/
+  }
 }
 
 // Send an event routine according to Module Switch
