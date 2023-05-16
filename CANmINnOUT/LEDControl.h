@@ -16,7 +16,7 @@ class LEDControl {
     void virtual setPin(byte pin, bool active = 1);
     void on();
     void off();
-    void flash(int period);
+    void flash(unsigned int period);
     virtual void run();
 
   private:
@@ -24,7 +24,7 @@ class LEDControl {
     bool _active;
     bool _state;
     bool _flash;
-    int _period;
+    unsigned int _period;
     unsigned long _lastTime;
 };
 

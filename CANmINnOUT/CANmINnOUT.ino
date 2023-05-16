@@ -50,8 +50,8 @@
 */
 ///////////////////////////////////////////////////////////////////////////////////
 // Pin Use map:
-// Pin 1   GP0  CAN Rx
-// Pin 2   GP1  CAN Tx
+// Pin 1   GP0  Not Used
+// Pin 2   GP1  Not Used
 // Pin 3        0V
 // Pin 4   GP2  Not Used
 // Pin 5   GP3  Not Used
@@ -60,8 +60,8 @@
 // Pin 8        0V
 // Pin 9   GP6  Not Used
 // Pin 10  GP7  Not Used
-// Pin 11  GP8  Not Used
-// Pin 12  GP9  Not Used
+// Pin 11  GP8  CAN Rx
+// Pin 12  GP9  CAN Tx
 // Pin 13   0V
 // Pin 14  GP10 Not Used
 // Pin 15  GP11 Not Used
@@ -78,7 +78,7 @@
 // Pin 26  GP20 Not Used
 // Pin 27  GP21 Not Used
 // Pin 28       0V
-// Pin 29  GP22 Not Used
+// Pin 29  GP22 
 // Pin 30  RUN Reset (active low)
 // Pin 31  GP26 ADC0 Not Used
 // Pin 32  GP27 ADC1 Not Used
@@ -260,14 +260,16 @@ void setup(){
 
   // end of setup
   DEBUG_PRINT(get_core_num() << F("> ready"));
+  delay(20);
 }
 
 void setup1() {
-  delay(2000);
+  delay(2010);
   setupModule();
 
   // end of setup
   DEBUG_PRINT(get_core_num() << F("> Module ready"));
+  delay(25);
 }
 
 void loop() {
@@ -311,7 +313,7 @@ void loop1() {
 
 void processSwitches(void){
   bool isSuccess = true;
-  for (int i = 0; i <  NUM_SWITCHES; i++){
+  for (int i = 0; i < NUM_SWITCHES; i++){
     moduleSwitch[i].update();
     if (moduleSwitch[i].changed()){
       byte nv = i + 1;
