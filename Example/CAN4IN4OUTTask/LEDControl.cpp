@@ -47,7 +47,7 @@ void LEDControl::off(void) {
 
 // blink LED
 
-void LEDControl::flash(int period) {
+void LEDControl::flash(unsigned int period) {
 
   _flash = true;
   _period = period;
